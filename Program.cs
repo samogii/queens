@@ -2,31 +2,32 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Channels;
 
 class Program
 {
     static void Main()
     {
-        Console.Write("Enter your Queens Number : ");
+        Console.Write("Enter your Queens Number: ");
         int x = int.Parse(Console.ReadLine());
         int boardSize = x;
         int populationSize = 1000;
-        int generations = 1000;
-        int count = 0;
-        double crossoverProbability = 0.6;
+        int generations = 10000;
+        double crossoverProbability = 0.7;
         double mutationProbability = 0.1;
-        for (int i = 0; i < 10; i++)
+
+        try
         {
-            crossoverProbability = 0.6;
-            mutationProbability = 0.1;
-            count = 0;
             GeneticAlgorithm geneticAlgorithm = new GeneticAlgorithm(boardSize, populationSize, crossoverProbability, mutationProbability);
-            Board solution = geneticAlgorithm.Run(generations, ref count);
+            Board solution = geneticAlgorithm.Run(generations);
 
             Console.WriteLine("Solution found:");
-            Console.WriteLine(solution.ToString() + $"\nWith Errors : {count}");
+            Console.WriteLine(solution.ToString());
         }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred: {ex.Message}");
+        }
+
         Console.ReadLine();
     }
 }
@@ -85,58 +86,42 @@ class GeneticAlgorithm
     {
         this.boardSize = boardSize;
         this.populationSize = populationSize;
-        this.mutationProbability = mutationProbability;
         this.crossoverProbability = crossoverProbability;
-    }
-    
-    private void AdjustCrossoverProbability(int generation, int maxGenerations)
-    {
-        // Example: Linearly decrease crossoverProbability over generations
-        double minCrossoverProbability = 0.1;
-        double slope = (minCrossoverProbability - crossoverProbability) / maxGenerations;
-        crossoverProbability += slope;
-
-        // Ensure crossoverProbability doesn't go below the minimum value
-        crossoverProbability = Math.Max(crossoverProbability, minCrossoverProbability);
+        this.mutationProbability = mutationProbability;
     }
 
-    public Board Run(int generations , ref int count )
+    public Board Run(int generations)
     {
         List<Board> population = InitializePopulation();
 
         for (int generation = 0; generation < generations; generation++)
         {
             population = EvolvePopulation(population);
-            Board bestIndividual = population.OrderBy(b => CalculateConflicts(b)).First();
-            AdjustCrossoverProbability(generation, generations);
-            AdjustMutationProbability(generation, generations);
-            if (CalculateConflicts(bestIndividual) == 0)
+            Board bestIndividual = population.OrderBy(b => Fitness(b)).First();
+
+            if (Fitness(bestIndividual) == 0)
             {
-                return bestIndividual;
+                return bestIndividual; // Solution found
             }
-            count++;
-            //Console.WriteLine($"Try Number : {generation + 1}, Conflict: \n{bestIndividual}\nNumber of Conflicts {CalculateConflicts(bestIndividual)}\n");
+
+            Console.WriteLine($"Generation {generation + 1}, Best Fitness: {Fitness(bestIndividual)} ,\n{bestIndividual}");
         }
 
         return new Board(0); // No solution found
     }
 
-    private void AdjustMutationProbability(int generation, int maxGenerations)
-    {
-        // Example: Linearly decrease mutationProbability over generations
-        double minMutationProbability = 0.01;
-        double slope = (minMutationProbability - mutationProbability) / maxGenerations;
-        mutationProbability += slope;
-
-        // Ensure mutationProbability doesn't go below the minimum value
-        mutationProbability = Math.Max(mutationProbability, minMutationProbability);
-    }
-
     private List<Board> InitializePopulation()
     {
-        return Enumerable.Range(0, populationSize).Select(_ => new Board(boardSize)).ToList();
-    }
+        List<Board> population = new List<Board>();
 
+        for (int i = 0; i < populationSize; i++)
+        {
+            Board board = new Board(boardSize);
+            population.Add(board);
+        }
+
+        return population;
+    }
 
     private List<Board> EvolvePopulation(List<Board> population)
     {
@@ -158,8 +143,9 @@ class GeneticAlgorithm
 
     private Board SelectParent(List<Board> population)
     {
+        // Tournament selection
         Random random = new Random();
-        int tournamentSize = 500;
+        int tournamentSize = 5;
 
         List<Board> tournament = new List<Board>();
         for (int i = 0; i < tournamentSize; i++)
@@ -168,7 +154,7 @@ class GeneticAlgorithm
             tournament.Add(population[index]);
         }
 
-        return tournament.OrderBy(b => CalculateConflicts(b)).First();
+        return tournament.OrderBy(b => Fitness(b)).First();
     }
 
     private Board Crossover(Board parent1, Board parent2)
@@ -182,7 +168,10 @@ class GeneticAlgorithm
 
             for (int i = startPos; i <= endPos; i++)
             {
-                childQueens[i] = parent1.Queens[i];
+                if (i < boardSize)
+                {
+                    childQueens[i] = parent1.Queens[i];
+                }
             }
 
             int index = 0;
@@ -192,19 +181,21 @@ class GeneticAlgorithm
                 {
                     try
                     {
-                        while (childQueens[index] != 0)
+                        while (index < boardSize && childQueens[index] != 0)
                         {
                             index++;
                         }
 
-                        childQueens[index++] = parent2.Queens[i];
+                        if (index < boardSize)
+                        {
+                            childQueens[index++] = parent2.Queens[i];
+                        }
                     }
                     catch (Exception)
                     {
-
+                        // Handle the exception, for example, by skipping this iteration
                         continue;
                     }
-                    break;
                 }
             }
 
@@ -212,7 +203,7 @@ class GeneticAlgorithm
         }
         else
         {
-            return parent1;
+            return parent1; // No crossover
         }
     }
 
@@ -224,14 +215,18 @@ class GeneticAlgorithm
             int pos1 = random.Next(boardSize);
             int pos2 = random.Next(boardSize);
 
-            int temp = board.Queens[pos1];
-            board.Queens[pos1] = board.Queens[pos2];
-            board.Queens[pos2] = temp;
+            if (pos1 < boardSize && pos2 < boardSize)
+            {
+                int temp = board.Queens[pos1];
+                board.Queens[pos1] = board.Queens[pos2];
+                board.Queens[pos2] = temp;
+            }
         }
+
         return board;
     }
 
-    private int CalculateConflicts(Board board)
+    private int Fitness(Board board)
     {
         int conflicts = 0;
 
@@ -239,22 +234,17 @@ class GeneticAlgorithm
         {
             for (int j = i + 1; j < board.Size; j++)
             {
-                if (HasConflict(board, i, j))
+                if (i < board.Size && j < board.Size &&
+                    board.Queens[i] == board.Queens[j] ||
+                    Math.Abs(i - j) == Math.Abs(board.Queens[i] - board.Queens[j]))
                 {
                     conflicts++;
-                    break;
                 }
             }
         }
+
         return conflicts;
     }
-
-    private bool HasConflict(Board board, int i, int j)
-    {
-        return board.Queens[i] == board.Queens[j] ||
-               Math.Abs(i - j) == Math.Abs(board.Queens[i] - board.Queens[j]);
-    }
-
 
     private Random random = new Random();
 }

@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "i5UDjjlb7bJu+9nSVM7edEUBwjYxFfqLbenyU4Ni6eux7zAONgzQgQYktHYf0Mpj52sjYHX3LsER62/x/HCf7A==",
+  "dgSpecHash": "e2JhCJxWf28ERax/9OIGgIhAjPspoCiacVSB+oWyfOaPMgBsihuxL0SPVpJSzsodkgMmQASG35aJbqqY+RIzDg==",
   "success": true,
-  "projectFilePath": "C:\\Users\\Sam\\Desktop\\8 queens\\8 queens\\8 queens.csproj",
+  "projectFilePath": "C:\\Users\\sami2\\Desktop\\queens\\NQueen.csproj",
   "expectedPackageFiles": [],
   "logs": []
 }
